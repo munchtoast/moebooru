@@ -19,9 +19,7 @@ class User < ApplicationRecord
         UserLog.where('created_at < ?', 15.days.ago).delete_all
       end
       begin
-        current_time = Time.now
-        user_logs.find_or_initialize_by(ip_addr: ip).update created_at: current_time
-        update_column :last_logged_in_at, current_time
+        log_newly_created_user_and_current_time(ip)
       # Once in a blue moon there will be race condition on find_or_initialize
       # resulting unique key constraint violation.
       # It doesn't really affect anything so just ignore that error.
@@ -37,6 +35,7 @@ class User < ApplicationRecord
     super
   end
 
+  # Provides methods for applying blacklist to user
   module UserBlacklistMethods
     # TODO: I don't see the advantage of normalizing these. Since commas are illegal
     # characters in tags, they can be used to separate lines (with whitespace separating
@@ -62,12 +61,11 @@ class User < ApplicationRecord
     end
 
     def commit_blacklists
-      if @blacklisted_tags
-        user_blacklisted_tags.clear
+      return unless @blacklisted_tags
 
-        @blacklisted_tags.scan(/[^\r\n]+/).each do |tags|
-          user_blacklisted_tags.create(tags: tags)
-        end
+      user_blacklisted_tags.clear
+      @blacklisted_tags.scan(/[^\r\n]+/).each do |tags|
+        user_blacklisted_tags.create(tags: tags)
       end
     end
 
@@ -78,7 +76,9 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides Authentication methods for user with hashing
   module UserAuthenticationMethods
+    # Extend methods to class
     module ClassMethods
       def authenticate(name, pass)
         authenticate_hash(name, sha1(pass))
@@ -102,6 +102,7 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides user password methods for validation, encryption, and resetting
   module UserPasswordMethods
     attr_accessor :password, :current_password
 
@@ -117,12 +118,12 @@ class User < ApplicationRecord
       # First test to see if it's creating new user (no password_hash)
       # or updating user. The second is to see if the action involves
       # updating password (which requires this validation).
-      if password_hash && (password || (email_changed? || current_email))
-        if current_password.blank?
-          errors.add :current_password, :blank
-        elsif User.authenticate(name, current_password).nil?
-          errors.add :current_password, :invalid
-        end
+      return unless password_hash_and_password_or_changed_email
+
+      if current_password.blank?
+        errors.add :current_password, :blank
+      elsif User.authenticate(name, current_password).nil?
+        errors.add :current_password, :invalid
       end
     end
 
@@ -146,7 +147,9 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides UserName methods for making name updates to the db
   module UserNameMethods
+    # Extend methods to class
     module ClassMethods
       def find_name(user_id)
         (select(:name).find_by(id: user_id) || AnonymousUser.new).name
@@ -176,6 +179,7 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides UserApi methods to extract as xml, json, or cookies
   module UserApiMethods
     def to_xml(options = {})
       options[:indent] ||= 2
@@ -194,6 +198,7 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides UserTag methods for fetching tag info from user via db lookups
   module UserTagMethods
     def uploaded_tags(options = {})
       type = options[:type]
@@ -201,39 +206,9 @@ class User < ApplicationRecord
       uploaded_tags = Rails.cache.read("uploaded_tags/#{id}/#{type}")
       return uploaded_tags unless uploaded_tags.nil?
 
-      if Rails.env == 'test'
-        # disable filtering in test mode to simplify tests
-        popular_tags = ''
-      else
-        popular_tags = select_values_sql("SELECT id FROM tags WHERE tag_type = #{CONFIG['tag_types']['General']} ORDER BY post_count DESC LIMIT 8").join(', ')
-        popular_tags = "AND pt.tag_id NOT IN (#{popular_tags})" unless popular_tags.blank?
-      end
+      popular_tags = Rails.env == 'test' ? '' : popular_general_tags
 
-      sql = if type
-              <<-EOS
-          SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, COUNT(*) AS count
-          FROM posts_tags pt, tags t, posts p
-          WHERE p.user_id = #{id}
-          AND p.id = pt.post_id
-          AND pt.tag_id = t.id
-          #{popular_tags}
-          AND t.tag_type = #{type.to_i}
-          GROUP BY pt.tag_id
-          ORDER BY count DESC
-          LIMIT 6
-              EOS
-            else
-              <<-EOS
-          SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, COUNT(*) AS count
-          FROM posts_tags pt, posts p
-          WHERE p.user_id = #{id}
-          AND p.id = pt.post_id
-          #{popular_tags}
-          GROUP BY pt.tag_id
-          ORDER BY count DESC
-          LIMIT 6
-              EOS
-            end
+      sql = type ? popular_tags_from_user_by_type(id, popular_tags, type) : popular_tags_from_user(id, popular_tags)
 
       uploaded_tags = select_all_sql(sql)
 
@@ -248,39 +223,9 @@ class User < ApplicationRecord
       favorite_tags = Rails.cache.read("favorite_tags/#{id}/#{type}")
       return favorite_tags unless favorite_tags.nil?
 
-      if Rails.env == 'test'
-        # disable filtering in test mode to simplify tests
-        popular_tags = ''
-      else
-        popular_tags = select_values_sql("SELECT id FROM tags WHERE tag_type = #{CONFIG['tag_types']['General']} ORDER BY post_count DESC LIMIT 8").join(', ')
-        popular_tags = "AND pt.tag_id NOT IN (#{popular_tags})" unless popular_tags.blank?
-      end
+      popular_tags = Rails.env == 'test' ? '' : popular_general_tags
 
-      sql = if type
-              <<-EOS
-          SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, SUM(v.score) AS sum
-          FROM posts_tags pt, tags t, post_votes v
-          WHERE v.user_id = #{id}
-          AND v.post_id = pt.post_id
-          AND pt.tag_id = t.id
-          #{popular_tags}
-          AND t.tag_type = #{type.to_i}
-          GROUP BY pt.tag_id
-          ORDER BY sum DESC
-          LIMIT 6
-              EOS
-            else
-              <<-EOS
-          SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, SUM(v.score) AS sum
-          FROM posts_tags pt, post_votes v
-          WHERE v.user_id = #{id}
-          AND v.post_id = pt.post_id
-          #{popular_tags}
-          GROUP BY pt.tag_id
-          ORDER BY sum DESC
-          LIMIT 6
-              EOS
-            end
+      sql = type ? sum_tag_score_from_user_by_type(id, popular_tags, type) : sum_tag_score_from_user(id, popular_tags)
 
       favorite_tags = select_all_sql(sql)
 
@@ -290,6 +235,7 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides UserPost methods for getting posts from user
   module UserPostMethods
     extend ActiveSupport::Concern
 
@@ -318,6 +264,7 @@ class User < ApplicationRecord
     end
   end
 
+  # Proivdes UserLevel methods for getting permissions and roles on User
   module UserLevelMethods
     def self.included(m)
       m.extend(ClassMethods)
@@ -342,7 +289,7 @@ class User < ApplicationRecord
       self.last_logged_in_at = Time.now
     end
 
-    def has_permission?(record, foreign_key = :user_id)
+    def permission?(record, foreign_key = :user_id)
       if is_mod_or_higher?
         true
       elsif record.respond_to?(foreign_key)
@@ -395,6 +342,7 @@ class User < ApplicationRecord
       end
     end
 
+    # Extend methods to class
     module ClassMethods
       def get_user_level(level)
         unless @user_level
@@ -409,6 +357,7 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides UserInvite methods for handling invite transactions between User
   module UserInviteMethods
     class NoInvites < RuntimeError; end
     class HasNegativeRecord < RuntimeError; end
@@ -440,7 +389,9 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides UserAvatar methods for customizing avatar
   module UserAvatarMethods
+    # Extend methods to class
     module ClassMethods
       # post_id is being destroyed.  Clear avatar_post_ids for this post, so we won't use
       # avatars from this post.  We don't need to actually delete the image.
@@ -458,7 +409,7 @@ class User < ApplicationRecord
       CONFIG['url_base'] + "/data/avatars/#{id}.jpg"
     end
 
-    def has_avatar?
+    def avatar?
       !avatar_post_id.nil?
     end
 
@@ -546,6 +497,7 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides UserTagSubscription methods for users to subscribe to tags
   module UserTagSubscriptionMethods
     def self.included(m)
       m.has_many :tag_subscriptions, -> { order 'name' }, dependent: :delete_all
@@ -570,6 +522,7 @@ class User < ApplicationRecord
     end
   end
 
+  # Provides UserLanguages for specifying languages of Users
   module UserLanguageMethods
     def self.included(m)
       m.validates_format_of :language, with: /\A([a-z\-]+)|\z/
@@ -619,7 +572,7 @@ class User < ApplicationRecord
   end
 
   # For compatibility with AnonymousUser class
-  def is_anonymous?
+  def anonymous?
     false
   end
 
@@ -630,23 +583,7 @@ class User < ApplicationRecord
   def similar_users
     # This uses a naive cosine distance formula that is very expensive to calculate.
     # TODO: look into alternatives, like SVD.
-    sql = <<-EOS
-      SELECT
-        f0.user_id as user_id,
-        COUNT(*) / (SELECT sqrt((SELECT COUNT(*) FROM post_votes WHERE user_id = f0.user_id) * (SELECT COUNT(*) FROM post_votes WHERE user_id = #{id}))) AS similarity
-      FROM
-        vote v0,
-        vote v1,
-        users u
-      WHERE
-        v0.post_id = v1.post_id
-        AND v1.user_id = #{id}
-        AND v0.user_id <> #{id}
-        AND u.id = v0.user_id
-      GROUP BY v0.user_id
-      ORDER BY similarity DESC
-      LIMIT 6
-    EOS
+    sql = users_that_are_similar_to_user(id)
 
     select_all_sql(sql)
   end
@@ -700,5 +637,99 @@ class User < ApplicationRecord
         builder.order 'id DESC'
       end
     end.to_hash
+  end
+
+  private
+
+  def log_newly_created_user_and_current_time(ip)
+    current_time = Time.now
+    user_logs.find_or_initialize_by(ip_addr: ip).update created_at: current_time
+    update_column :last_logged_in_at, current_time
+  end
+
+  def password_hash_and_password_or_changed_email
+    password_hash && (password || (email_changed? || current_email))
+  end
+
+  def popular_tags_from_user_by_type(id, popular_tags, type)
+    <<-EOS
+      SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, COUNT(*) AS count
+      FROM posts_tags pt, tags t, posts p
+      WHERE p.user_id = #{id}
+      AND p.id = pt.post_id
+      AND pt.tag_id = t.id
+      #{popular_tags}
+      AND t.tag_type = #{type.to_i}
+      GROUP BY pt.tag_id
+      ORDER BY count DESC
+      LIMIT 6
+    EOS
+  end
+
+  def popular_tags_from_user(id, popular_tags)
+    <<-EOS
+      SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, COUNT(*) AS count
+      FROM posts_tags pt, posts p
+      WHERE p.user_id = #{id}
+      AND p.id = pt.post_id
+      #{popular_tags}
+      GROUP BY pt.tag_id
+      ORDER BY count DESC
+      LIMIT 6
+    EOS
+  end
+
+  def popular_general_tags
+    popular_tags = select_values_sql("SELECT id FROM tags WHERE tag_type = #{CONFIG['tag_types']['General']} ORDER BY post_count DESC LIMIT 8").join(', ')
+    popular_tags = "AND pt.tag_id NOT IN (#{popular_tags})" unless popular_tags.blank?
+    popular_tags
+  end
+
+  def sum_tag_score_from_user_by_type(id, popular_tags, type)
+    <<-EOS
+      SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, SUM(v.score) AS sum
+      FROM posts_tags pt, tags t, post_votes v
+      WHERE v.user_id = #{id}
+      AND v.post_id = pt.post_id
+      AND pt.tag_id = t.id
+      #{popular_tags}
+      AND t.tag_type = #{type.to_i}
+      GROUP BY pt.tag_id
+      ORDER BY sum DESC
+      LIMIT 6
+    EOS
+  end
+
+  def sum_tag_score_from_user(id, popular_tags)
+    <<-EOS
+      SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, SUM(v.score) AS sum
+      FROM posts_tags pt, post_votes v
+      WHERE v.user_id = #{id}
+      AND v.post_id = pt.post_id
+      #{popular_tags}
+      GROUP BY pt.tag_id
+      ORDER BY sum DESC
+      LIMIT 6
+    EOS
+  end
+
+  def users_that_are_similar_to_user(id)
+    <<-EOS
+      SELECT
+        f0.user_id as user_id,
+        COUNT(*) / (SELECT sqrt((SELECT COUNT(*) FROM post_votes WHERE user_id = f0.user_id) * (SELECT COUNT(*) FROM post_votes WHERE user_id = #{id}))) AS similarity
+      FROM
+        vote v0,
+        vote v1,
+        users u
+      WHERE
+        v0.post_id = v1.post_id
+        AND v1.user_id = #{id}
+        AND v0.user_id <> #{id}
+        AND u.id = v0.user_id
+      GROUP BY v0.user_id
+      ORDER BY similarity DESC
+      LIMIT 6
+    EOS
   end
 end
