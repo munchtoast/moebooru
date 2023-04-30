@@ -75,7 +75,7 @@ class ApplicationController < ActionController::Base
 
       ActiveRecord::Base.init_history
 
-      @current_user.log(request.remote_ip) unless @current_user.is_anonymous?
+      @current_user.log(request.remote_ip) unless @current_user.anonymous?
     end
 
     CONFIG["user_levels"].each do |name, _value|
@@ -239,7 +239,7 @@ class ApplicationController < ActionController::Base
   end
 
   def init_cookies
-    if @current_user.is_anonymous?
+    if @current_user.anonymous?
       cookies.delete :user_info
     else
       cookies[:user_info] = @current_user.user_info_cookie
@@ -247,13 +247,13 @@ class ApplicationController < ActionController::Base
 
     return if params[:format] == "xml" || params[:format] == "json"
 
-    cookies["forum_post_last_read_at"] = if @current_user.is_anonymous?
+    cookies["forum_post_last_read_at"] = if @current_user.anonymous?
                                            Time.now
                                          else
                                            @current_user.last_forum_topic_read_at || Time.at(0)
                                          end.to_json
 
-    if !@current_user.is_anonymous?
+    if !@current_user.anonymous?
       cookies["user_id"] = @current_user.id.to_s
 
       if @current_user.has_mail?
@@ -365,7 +365,7 @@ class ApplicationController < ActionController::Base
   end
 
   def no_anonymous
-    access_denied if @current_user.is_anonymous?
+    access_denied if @current_user.anonymous?
   end
 
   def sanitize_id

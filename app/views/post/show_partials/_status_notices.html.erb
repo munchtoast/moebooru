@@ -35,7 +35,7 @@
 <% if @post.is_held %>
   <div class="status-notice" id="held-notice">
     <%= t('.held.info') %>
-    <% if @current_user.has_permission?(@post) %>
+    <% if @current_user.permission?(@post) %>
       (<%= link_to_function t('.held.activate'), "Post.activate_post(#{ @post.id });" %>)
     <% end %>
   </div>

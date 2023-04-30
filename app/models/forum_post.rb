@@ -125,7 +125,7 @@ class ForumPost < ApplicationRecord
 
   def self.updated?(user)
     conds = []
-    conds += ["creator_id <> %d" % [user.id]] unless user.is_anonymous?
+    conds += ["creator_id <> %d" % [user.id]] unless user.anonymous?
 
     newest_topic = ForumPost.where(conds).order(:id => :desc).select(:created_at).take
     return false if newest_topic.nil?

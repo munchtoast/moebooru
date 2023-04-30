@@ -37,7 +37,7 @@ class TagSubscriptionController < ApplicationController
     if request.post?
       @tag_subscription = TagSubscription.find(params[:id])
 
-      if @current_user.has_permission?(@tag_subscription)
+      if @current_user.permission?(@tag_subscription)
         @tag_subscription.destroy
       end
     end

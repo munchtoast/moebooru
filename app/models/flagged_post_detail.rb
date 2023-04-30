@@ -14,7 +14,7 @@ class FlaggedPostDetail < ApplicationRecord
   end
 
   def self.new_deleted_posts(user)
-    return 0 if user.is_anonymous?
+    return 0 if user.anonymous?
 
     Rails.cache.fetch("deleted_posts:#{user.id}:#{user.last_deleted_post_seen_at.to_i}", :expires_in => 1.minute) do
       select_value_sql(

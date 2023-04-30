@@ -4,7 +4,7 @@
       <li class="user"><%= link_to t('.account._'), { controller: '/user', :action => :home } %>
         <%= link_to '■', '#', :class => 'submenu-button' %>
         <ul class="submenu">
-          <% if @current_user.is_anonymous? %>
+          <% if @current_user.anonymous? %>
             <li><%= link_to t('.account.login'), { controller: '/user', :action => :login }, { :id => 'login-link', :class => 'login-button' } %></li>
             <li><%= link_to t('.account.register'), controller: '/user', :action => :signup %></li>
             <li><%= link_to t('.account.reset'), controller: '/user', :action => :reset_password %></li>

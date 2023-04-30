@@ -139,10 +139,10 @@ class UserTest < ActiveSupport::TestCase
     assert_equal("Admin", admin.pretty_level)
 
     p1 = create_post("tag1", 4)
-    assert(admin.has_permission?(p1), "Admin should have permission")
-    assert(mod.has_permission?(p1), "Mod should have permission")
-    assert(!priv.has_permission?(p1), "Non-mod should not have permission")
-    assert(member.has_permission?(p1), "Owner should have permission")
+    assert(admin.permission?(p1), "Admin should have permission")
+    assert(mod.permission?(p1), "Mod should have permission")
+    assert(!priv.permission?(p1), "Non-mod should not have permission")
+    assert(member.permission?(p1), "Owner should have permission")
 
     assert(mod.is_mod_or_higher?)
     assert(mod.is_blocked_or_higher?)

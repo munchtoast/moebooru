@@ -13,12 +13,12 @@ class PoolPost < ApplicationRecord
   scope :active, lambda { where :active => true }
 
   def can_change_is_public?(user)
-    user.has_permission?(pool) # only the owner can change is_public
+    user.permission?(pool) # only the owner can change is_public
   end
 
   def can_change?(user, _attribute)
     return false unless user.is_member_or_higher?
-    pool.is_public? || user.has_permission?(pool)
+    pool.is_public? || user.permission?(pool)
   end
 
   # This matches Pool.post_pretty_sequence in pool.js.

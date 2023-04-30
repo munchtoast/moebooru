@@ -14,11 +14,11 @@ class AnonymousUser
 
   alias_method :pretty_name, :name
 
-  def is_anonymous?
+  def anonymous?
     true
   end
 
-  def has_permission?(_obj, _foreign_key = :user_id)
+  def permission?(_obj, _foreign_key = :user_id)
     false
   end
 
@@ -41,7 +41,7 @@ class AnonymousUser
     true
   end
 
-  def has_avatar?
+  def avatar?
     false
   end
 

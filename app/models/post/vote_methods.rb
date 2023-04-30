@@ -31,7 +31,7 @@ module Post::VoteMethods
     score = CONFIG["vote_record_min"] if score < CONFIG["vote_record_min"]
     score = CONFIG["vote_record_max"] if score > CONFIG["vote_record_max"]
 
-    if user.is_anonymous?
+    if user.anonymous?
       return false
     end
 

@@ -1,6 +1,6 @@
 <% provide :title, t('.title') %>
 <div id="user-index">
-  <% if @current_user.is_anonymous? %>
+  <% if @current_user.anonymous? %>
     <h2><%= t('.not_logged_in') %></h2>
 
     <ul class="link-page">

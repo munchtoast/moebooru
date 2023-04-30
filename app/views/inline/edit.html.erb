@@ -4,7 +4,7 @@
 
 <div>
   <%= t('.tag', :id => @inline.id) %>
-  <% if @current_user.has_permission?(@inline) %>
+  <% if @current_user.permission?(@inline) %>
 
     | <a href="#" onclick='InlineImage.expand("<%= inline_html_id %>"); return false;'><%= t('.preview') %></a>
 
@@ -74,7 +74,7 @@
       <div id="inline-<%= image.id %>" class="inline-image-entry" style="margin-bottom: 1.5em;">
         <div style="height: 1.6em;">
           <span style="line-height: 1.6em;">
-          <% if @current_user.has_permission?(@inline) %>
+          <% if @current_user.permission?(@inline) %>
             <%= link_to t('.remove'), "#", :onclick => "if(confirm('#{t('.remove_confirm')}')) $('delete-image-#{image.id}').submit(); return false;" %>
             | <%= link_to_function t('.move.up'), "orderShift(#{image.id}, -1)" %>
             | <%= link_to_function t('.move.down'), "orderShift(#{image.id}, +1)" %>
@@ -88,7 +88,7 @@
             </a>
 
             <span id="image-description-edit-<%= image.id %>" style="display: none;">
-              <%= text_field_tag "image[#{image.id}][description]", image.description, :size => 40, :disabled => (not @current_user.has_permission?(@inline)) %>
+              <%= text_field_tag "image[#{image.id}][description]", image.description, :size => 40, :disabled => (not @current_user.permission?(@inline)) %>
             </span>
           <% else %>
             <%= h(image.description) %>
@@ -97,7 +97,7 @@
         </div>
         <img style="display: inline" src="<%= image.preview_url %>" width="<%= image.preview_dimensions[:width] %>" height="<%= image.preview_dimensions[:height] %>"></img>
 
-        <%= hidden_field_tag "image[#{image.id}][sequence]", image.sequence, :size => 10, :disabled => (not @current_user.has_permission?(@inline)), :class=>"inline-sequence" %>
+        <%= hidden_field_tag "image[#{image.id}][sequence]", image.sequence, :size => 10, :disabled => (not @current_user.permission?(@inline)), :class=>"inline-sequence" %>
         <div>
         </div>
 
@@ -105,7 +105,7 @@
     <% end %>
 
     <%= hidden_field_tag "id", @inline.id %>
-    <%= submit_tag t('.save'), :disabled => (not @current_user.has_permission?(@inline)) %>
+    <%= submit_tag t('.save'), :disabled => (not @current_user.permission?(@inline)) %>
   <% end %>
 </div>
 
@@ -171,7 +171,7 @@ function orderShift(id, direction) {
 <% end %>
 
 <% content_for :subnavbar do %>
-  <% if @current_user.has_permission?(@inline) %>
+  <% if @current_user.permission?(@inline) %>
     <li><%= link_to t('.delete'), "#", :onclick => "if(confirm('#{t('.delete_confirm')}')) $('delete-group').submit(); return false;" %></li>
     <li><%= link_to t('.crop'), :action => "crop", :id => @inline.id %></li>
   <% end %>

@@ -226,7 +226,7 @@ class PoolController < ApplicationController
       end
     else
       @pools = Pool.where(:is_active => true)
-      if @current_user.is_anonymous?
+      if @current_user.anonymous?
         @pools = @pools.where(:is_public => true)
       else
         @pools = @pools.where("is_public = TRUE OR user_id = ?", @current_user.id)
@@ -329,7 +329,7 @@ class PoolController < ApplicationController
   def select
     @post_id = params[:post_id].to_i
     @pools = Pool.where(:is_active => true)
-    if @current_user.is_anonymous?
+    if @current_user.anonymous?
       @pools = @pools.where(:is_public => true)
     else
       @pools = @pools.where("is_public = TRUE OR user_id = ?", @current_user.id)

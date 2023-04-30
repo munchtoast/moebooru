@@ -244,7 +244,7 @@ class PostController < ApplicationController
   end
 
   def deleted_index
-    if !@current_user.is_anonymous? && params[:user_id] && params[:user_id].to_i == @current_user.id
+    if !@current_user.anonymous? && params[:user_id] && params[:user_id].to_i == @current_user.id
       @current_user.update(:last_deleted_post_seen_at => Time.now)
     end
 
@@ -258,7 +258,7 @@ class PostController < ApplicationController
   end
 
   def acknowledge_new_deleted_posts
-    @current_user.update(:last_deleted_post_seen_at => Time.now) unless @current_user.is_anonymous?
+    @current_user.update(:last_deleted_post_seen_at => Time.now) unless @current_user.anonymous?
     respond_to_success("Success", {})
   end
 

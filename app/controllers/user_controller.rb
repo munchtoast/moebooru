@@ -342,7 +342,7 @@ class UserController < ApplicationController
       respond_to_error("Not found", :action => "index", :status => 404) unless @user
     end
 
-    if !@user.is_anonymous? && !@current_user.has_permission?(@user, :id)
+    if !@user.anonymous? && !@current_user.permission?(@user, :id)
       access_denied
       return
     end
@@ -355,7 +355,7 @@ class UserController < ApplicationController
       end
     end
 
-    if !@user.is_anonymous? && params[:id] == @user.avatar_post_id
+    if !@user.anonymous? && params[:id] == @user.avatar_post_id
       @old = params
     end
 

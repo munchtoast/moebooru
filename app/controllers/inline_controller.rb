@@ -11,7 +11,7 @@ class InlineController < ApplicationController
 
   def index
     order = []
-    unless @current_user.is_anonymous?
+    unless @current_user.anonymous?
       order << ["user_id = #{@current_user.id} DESC"]
     end
     order << ["created_at DESC"]
@@ -24,7 +24,7 @@ class InlineController < ApplicationController
   def delete
     @inline = Inline.find(params[:id])
 
-    unless @current_user.has_permission?(@inline)
+    unless @current_user.permission?(@inline)
       access_denied
       return
     end
@@ -36,7 +36,7 @@ class InlineController < ApplicationController
   def add_image
     @inline = Inline.find(params[:id])
 
-    unless @current_user.has_permission?(@inline)
+    unless @current_user.permission?(@inline)
       access_denied
       return
     end
@@ -58,7 +58,7 @@ class InlineController < ApplicationController
     image = InlineImage.find(params[:id])
 
     inline = image.inline
-    unless @current_user.has_permission?(inline)
+    unless @current_user.permission?(inline)
       access_denied
       return
     end
@@ -70,7 +70,7 @@ class InlineController < ApplicationController
   def update
     inline = Inline.find(params[:id])
 
-    unless @current_user.has_permission?(inline)
+    unless @current_user.permission?(inline)
       access_denied
       return
     end
@@ -119,7 +119,7 @@ class InlineController < ApplicationController
     @inline = Inline.find(params[:id])
     @image = @inline.inline_images.take!
 
-    return access_denied unless @current_user.has_permission? @inline
+    return access_denied unless @current_user.permission? @inline
 
     if request.post?
       if @inline.crop(params)

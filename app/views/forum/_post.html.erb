@@ -2,7 +2,7 @@
   <div class="author">
     <h6 class="author"><%= link_to h(post.author), :controller => "user", :action => "show", :id => post.creator_id %></h6>
     <span class="date"><%= link_to timeago(post.created_at), :action => "show", :id => post.id %></span>
-    <% if post.creator.has_avatar? then %>
+    <% if post.creator.avatar? then %>
       <div class="forum-avatar-container"> <%= avatar(post.creator, post.id) %> </div>
     <% end %>
   </div>
@@ -18,7 +18,7 @@
     <% if not @preview then %>
     <div class="post-footer" style="clear: left;">
       <ul class="flat-list pipe-list">
-      <% if @current_user.has_permission?(post, :creator_id) %>
+      <% if @current_user.permission?(post, :creator_id) %>
         <li> <%= link_to t('.edit'), :action => "edit", :id => post.id %>
         <li> <%= link_to t('.delete'), {:action => "destroy", :id => post.id}, :confirm => t('.delete_confirm'), :method => :post %>
       <% end %>

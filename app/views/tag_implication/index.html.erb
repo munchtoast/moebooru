@@ -61,7 +61,7 @@
     <h4><%= t('.add_new.title') %></h4>
     <p><%= t('.add_new.info_moderation') %></p>
     <p><%= t('.add_new.info') %></p>
-    <% unless @current_user.is_anonymous? %>
+    <% unless @current_user.anonymous? %>
       <%= hidden_field_tag "tag_implication[creator_id]", @current_user.id %>
     <% end %>
 

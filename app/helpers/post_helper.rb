@@ -174,7 +174,7 @@ module PostHelper
 
     html << %(<span class="stars #{className}">)
 
-    unless user.is_anonymous?
+    unless user.anonymous?
       (0..3).each do |vote|
         html << %(<a href="#" class="star star-#{vote} star-off" data-star="#{vote}"></a>)
       end

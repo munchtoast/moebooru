@@ -63,7 +63,7 @@ class ForumController < ApplicationController
   def destroy
     @forum_post = ForumPost.find(params[:id])
 
-    if @current_user.has_permission?(@forum_post, :creator_id)
+    if @current_user.permission?(@forum_post, :creator_id)
       @forum_post.destroy
       flash[:notice] = "Post destroyed"
 
@@ -81,7 +81,7 @@ class ForumController < ApplicationController
   def edit
     @forum_post = ForumPost.find(params[:id])
 
-    unless @current_user.has_permission?(@forum_post, :creator_id)
+    unless @current_user.permission?(@forum_post, :creator_id)
       access_denied
     end
   end
@@ -89,7 +89,7 @@ class ForumController < ApplicationController
   def update
     @forum_post = ForumPost.find(params[:id])
 
-    unless @current_user.has_permission?(@forum_post, :creator_id)
+    unless @current_user.permission?(@forum_post, :creator_id)
       access_denied
       return
     end
@@ -107,7 +107,7 @@ class ForumController < ApplicationController
     @forum_post = ForumPost.find(params[:id])
     @children = @forum_post.children.order(:id).paginate :per_page => 30, :page => page_number
 
-    if !@current_user.is_anonymous? && @current_user.last_forum_topic_read_at < @forum_post.updated_at
+    if !@current_user.anonymous? && @current_user.last_forum_topic_read_at < @forum_post.updated_at
       @current_user.update_attribute(:last_forum_topic_read_at, @forum_post.updated_at)
     end
 

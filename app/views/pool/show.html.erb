@@ -45,10 +45,10 @@
     <li class="<%= li_class %>"><%= link_to_pool_zip t('.links.png'), @pool, zip_params, {:has_jpeg => has_jpeg} %></li>
   <% end %>
   <li><%= link_to t('.links.index_view'), :controller => "post", :action => "index", :tags => "pool:#{@pool.id}" %> </li>
-  <% if not @current_user.is_anonymous? %>
+  <% if not @current_user.anonymous? %>
   <li><%= link_to_function t('.links.toggle_view'), "User.set_pool_browse_mode(#{ j((1-@browse_mode).to_s)});" %></li>
   <% end %>
-  <% if @current_user.has_permission?(@pool) %>
+  <% if @current_user.permission?(@pool) %>
     <li><%= link_to t('.links.edit'), :action => "update", :id => params[:id] %></li>
     <li><%= link_to t('.links.delete'), :action => "destroy", :id => params[:id] %></li>
   <% end %>

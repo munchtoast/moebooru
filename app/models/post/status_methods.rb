@@ -101,7 +101,7 @@ module Post::StatusMethods
     user = Thread.current["danbooru-user"]
 
     # Only the original poster can hold or unhold a post.
-    return if user && !user.has_permission?(self)
+    return if user && !user.permission?(self)
 
     if hold
       # A post can only be held within one minute of posting (except by a moderator);

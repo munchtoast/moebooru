@@ -6,10 +6,10 @@
   <% else %>
     <p>
       <%=t :user_login_text5 %><%= h CONFIG["app_name"] %>.
-      <% unless @current_user.is_anonymous? %>
+      <% unless @current_user.anonymous? %>
         <%=t :user_login_text6 %><%= link_to t(:user_login_text7), :action => "reset_password" %><%=t :user_login_text8 %>
       <% end %>
-      <% if @current_user.is_anonymous? %>
+      <% if @current_user.anonymous? %>
         <% if CONFIG["enable_signups"] %>
           <%=t :user_login_text9 %><%= link_to t(:user_login_text10), :action => "signup" %>.
         <% else %>

@@ -72,7 +72,7 @@ class UserControllerTest < ActionController::TestCase
 
     post :authenticate, :params => { :user => { :name => "bob", :password => "zugzug2" } }
     assert_not_nil(assigns(:current_user))
-    assert_equal(true, assigns(:current_user).is_anonymous?)
+    assert_equal(true, assigns(:current_user).anonymous?)
   end
 
   def test_authentication_success
@@ -80,7 +80,7 @@ class UserControllerTest < ActionController::TestCase
 
     post :authenticate, :params => { :user => { :name => "bob", :password => "zugzug1" } }
     assert_not_nil(assigns(:current_user))
-    assert_equal(false, assigns(:current_user).is_anonymous?)
+    assert_equal(false, assigns(:current_user).anonymous?)
     assert_equal("bob", assigns(:current_user).name)
   end
 

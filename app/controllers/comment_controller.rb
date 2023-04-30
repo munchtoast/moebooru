@@ -12,7 +12,7 @@ class CommentController < ApplicationController
 
   def update
     comment = Comment.find(params[:id])
-    if @current_user.has_permission?(comment)
+    if @current_user.permission?(comment)
       comment.update(comment_params)
       respond_to_success("Comment updated", :action => "index")
     else
@@ -22,7 +22,7 @@ class CommentController < ApplicationController
 
   def destroy
     comment = Comment.find(params[:id])
-    if @current_user.has_permission?(comment)
+    if @current_user.permission?(comment)
       comment.destroy
       respond_to_success("Comment deleted", :controller => "post", :action => "show", :id => comment.post_id)
     else
@@ -68,7 +68,7 @@ class CommentController < ApplicationController
       @posts.each { |post| comments.push(*post.recent_comments) }
 
       newest_comment = comments.max { |a, b| a.created_at <=> b.created_at }
-      if !@current_user.is_anonymous? && newest_comment && @current_user.last_comment_read_at < newest_comment.created_at
+      if !@current_user.anonymous? && newest_comment && @current_user.last_comment_read_at < newest_comment.created_at
         @current_user.update(:last_comment_read_at => newest_comment.created_at)
       end
 

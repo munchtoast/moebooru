@@ -92,7 +92,7 @@ class Post < ApplicationRecord
   end
 
   def can_user_delete?(user)
-    return false unless user.has_permission?(self)
+    return false unless user.permission?(self)
 
     return false if !user.is_mod_or_higher? && !is_held && created_at < 1.day.ago
 
@@ -193,7 +193,7 @@ class Post < ApplicationRecord
 
   def self.new_deleted?(user)
     conds = []
-    conds += ["creator_id <> %d" % [user.id]] unless user.is_anonymous?
+    conds += ["creator_id <> %d" % [user.id]] unless user.anonymous?
 
     newest_topic = ForumPost.where(conds).order(:id => :desc).select(:created_at).take
     return false if newest_topic.nil?

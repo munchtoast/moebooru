@@ -10,7 +10,7 @@
     <%= hidden_field_tag 'user_id', @params[:user_id] %>
   <% end %>
   <%
-    if @user.has_avatar? && @post == @user.avatar_post
+    if @user.avatar? && @post == @user.avatar_post
       options = {
         left: @user.avatar_left,
         right: @user.avatar_right,
@@ -36,6 +36,6 @@
       <div class="image-crop-preview__preview js-image-crop--preview"></div>
     </div>
 
-    <%= submit_tag t(:user_set_avatar) %>
+    <%= submit_tag t(:user_avatar) %>
   </div>
 <% end %>

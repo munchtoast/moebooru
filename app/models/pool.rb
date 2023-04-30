@@ -23,7 +23,7 @@ class Pool < ApplicationRecord
     end
 
     def can_be_updated_by?(user)
-      is_public? || user.has_permission?(self)
+      is_public? || user.permission?(self)
     end
 
     def add_post(post_id, options = {})
@@ -96,12 +96,12 @@ class Pool < ApplicationRecord
     end
 
     def can_change_is_public?(user)
-      user.has_permission?(self)
+      user.permission?(self)
     end
 
     def can_change?(user, _attribute)
       return false unless user.is_member_or_higher?
-      is_public? || user.has_permission?(self)
+      is_public? || user.permission?(self)
     end
 
     def update_pool_links
