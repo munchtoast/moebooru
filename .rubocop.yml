@@ -1,8 +1,0 @@
-AllCops:
-  TargetRubyVersion: 2.5
-Layout/LineLength:
-  Max: 200
-Style/FrozenStringLiteralComment:
-  Enabled: false
-Naming/MethodParameterName:
-  MinNameLength: 1
