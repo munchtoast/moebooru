@@ -328,7 +328,7 @@ class User < ApplicationRecord
 
     # Defines various convenience methods for finding out the user's level
     CONFIG['user_levels'].each do |name, value|
-      normalized_name = name.downcase.gsub(/ /, '_')
+      normalized_name = name.downcase.tr(' ', '_')
       define_method("is_#{normalized_name}?") do
         level == value
       end
@@ -348,7 +348,7 @@ class User < ApplicationRecord
         unless @user_level
           @user_level = {}
           CONFIG['user_levels'].each do |name, value|
-            normalized_name = name.downcase.gsub(/ /, '_').to_sym
+            normalized_name = name.downcase.tr(' ', '_').to_sym
             @user_level[normalized_name] = value
           end
         end
