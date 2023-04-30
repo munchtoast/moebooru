@@ -1,3 +1,5 @@
+# Filename: user.rb
+# Description: Provides model for the user class
 class User < ApplicationRecord
   has_many :user_logs
   has_many :post_votes
@@ -8,13 +10,13 @@ class User < ApplicationRecord
   end
 
   def self.authenticate_with_api_key(username, api_key)
-    where(:name => username, :api_key => api_key).first
+    where(name: username, api_key: api_key).first
   end
 
   def log(ip)
-    Rails.cache.fetch({ :type => :user_logs, :id => id, :ip => ip }, :expires_in => 10.minutes) do
-      Rails.cache.fetch({ :type => :user_logs, :id => :all }, :expires_in => 1.day) do
-        UserLog.where("created_at < ?", 15.days.ago).delete_all
+    Rails.cache.fetch({ type: :user_logs, id: id, ip: ip }, expires_in: 10.minutes) do
+      Rails.cache.fetch({ type: :user_logs, id: :all }, expires_in: 1.day) do
+        UserLog.where('created_at < ?', 15.days.ago).delete_all
       end
       begin
         current_time = Time.now
@@ -42,7 +44,7 @@ class User < ApplicationRecord
     def self.included(m)
       m.after_save :commit_blacklists
       m.after_create :set_default_blacklisted_tags
-      m.has_many :user_blacklisted_tags, lambda { order "id" }, :dependent => :delete_all
+      m.has_many :user_blacklisted_tags, -> { order 'id' }, dependent: :delete_all
     end
 
     attr_writer :blacklisted_tags
@@ -64,14 +66,14 @@ class User < ApplicationRecord
         user_blacklisted_tags.clear
 
         @blacklisted_tags.scan(/[^\r\n]+/).each do |tags|
-          user_blacklisted_tags.create(:tags => tags)
+          user_blacklisted_tags.create(tags: tags)
         end
       end
     end
 
     def set_default_blacklisted_tags
-      CONFIG["default_blacklists"].each do |b|
-        UserBlacklistedTag.create(:user_id => id, :tags => b)
+      CONFIG['default_blacklists'].each do |b|
+        UserBlacklistedTag.create(user_id: id, tags: b)
       end
     end
   end
@@ -105,7 +107,7 @@ class User < ApplicationRecord
 
     def self.included(m)
       m.before_save :encrypt_password
-      m.validates_length_of :password, :minimum => 5, :if => lambda { |rec| rec.password }
+      m.validates_length_of :password, minimum: 5, if: ->(rec) { rec.password }
       m.validates_confirmation_of :password
       # Changing password requires current password.
       m.validate :validate_current_password
@@ -115,7 +117,7 @@ class User < ApplicationRecord
       # First test to see if it's creating new user (no password_hash)
       # or updating user. The second is to see if the action involves
       # updating password (which requires this validation).
-      if password_hash && (password || (self.email_changed? || current_email))
+      if password_hash && (password || (email_changed? || current_email))
         if current_password.blank?
           errors.add :current_password, :blank
         elsif User.authenticate(name, current_password).nil?
@@ -129,9 +131,9 @@ class User < ApplicationRecord
     end
 
     def reset_password
-      consonants = "bcdfghjklmnpqrstvqxyz"
-      vowels = "aeiou"
-      pass = ""
+      consonants = 'bcdfghjklmnpqrstvqxyz'
+      vowels = 'aeiou'
+      pass = ''
 
       4.times do
         pass << consonants[rand(21), 1]
@@ -139,7 +141,7 @@ class User < ApplicationRecord
       end
 
       pass << rand(100).to_s
-      execute_sql("UPDATE users SET password_hash = ? WHERE id = ?", User.sha1(pass), id)
+      execute_sql('UPDATE users SET password_hash = ? WHERE id = ?', User.sha1(pass), id)
       pass
     end
   end
@@ -147,7 +149,7 @@ class User < ApplicationRecord
   module UserNameMethods
     module ClassMethods
       def find_name(user_id)
-        (select(:name).find_by(:id => user_id) || AnonymousUser.new).name
+        (select(:name).find_by(id: user_id) || AnonymousUser.new).name
       end
 
       def find_by_name(name)
@@ -157,10 +159,10 @@ class User < ApplicationRecord
 
     def self.included(m)
       m.extend(ClassMethods)
-      m.validates_length_of :name, :within => 2..20, :on => :create
-      m.validates_format_of :name, :with => /\A[^\p{Space};,]+\Z/, :on => :create, :message => "cannot have whitespace, commas, or semicolons"
+      m.validates_length_of :name, within: 2..20, on: :create
+      m.validates_format_of :name, with: /\A[^\p{Space};,]+\Z/, on: :create, message: 'cannot have whitespace, commas, or semicolons'
       #      validates_format_of :name, :with => /^(Anonymous|[Aa]dministrator)/, :on => :create, :message => "this is a disallowed username"
-      m.validates_uniqueness_of :name, :case_sensitive => false, :on => :create
+      m.validates_uniqueness_of :name, case_sensitive: false, on: :create
       m.after_save :update_cached_name
     end
 
@@ -177,18 +179,18 @@ class User < ApplicationRecord
   module UserApiMethods
     def to_xml(options = {})
       options[:indent] ||= 2
-      xml = options[:builder] ||= Builder::XmlMarkup.new(:indent => options[:indent])
-      xml.user(:name => name, :id => id) do
+      xml = options[:builder] ||= Builder::XmlMarkup.new(indent: options[:indent])
+      xml.user(name: name, id: id) do
         yield options[:builder] if block_given?
       end
     end
 
     def as_json(*args)
-      { :name => name, :id => id }.as_json(*args)
+      { name: name, id: id }.as_json(*args)
     end
 
     def user_info_cookie
-      [id, level, use_browser ? "1" : "0"].join(";")
+      [id, level, use_browser ? '1' : '0'].join(';')
     end
   end
 
@@ -199,16 +201,16 @@ class User < ApplicationRecord
       uploaded_tags = Rails.cache.read("uploaded_tags/#{id}/#{type}")
       return uploaded_tags unless uploaded_tags.nil?
 
-      if Rails.env == "test"
+      if Rails.env == 'test'
         # disable filtering in test mode to simplify tests
-        popular_tags = ""
+        popular_tags = ''
       else
-        popular_tags = select_values_sql("SELECT id FROM tags WHERE tag_type = #{CONFIG["tag_types"]["General"]} ORDER BY post_count DESC LIMIT 8").join(", ")
+        popular_tags = select_values_sql("SELECT id FROM tags WHERE tag_type = #{CONFIG['tag_types']['General']} ORDER BY post_count DESC LIMIT 8").join(', ')
         popular_tags = "AND pt.tag_id NOT IN (#{popular_tags})" unless popular_tags.blank?
       end
 
-      if type
-        sql = <<-EOS
+      sql = if type
+              <<-EOS
           SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, COUNT(*) AS count
           FROM posts_tags pt, tags t, posts p
           WHERE p.user_id = #{id}
@@ -219,9 +221,9 @@ class User < ApplicationRecord
           GROUP BY pt.tag_id
           ORDER BY count DESC
           LIMIT 6
-        EOS
-      else
-        sql = <<-EOS
+              EOS
+            else
+              <<-EOS
           SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, COUNT(*) AS count
           FROM posts_tags pt, posts p
           WHERE p.user_id = #{id}
@@ -230,12 +232,12 @@ class User < ApplicationRecord
           GROUP BY pt.tag_id
           ORDER BY count DESC
           LIMIT 6
-        EOS
-      end
+              EOS
+            end
 
       uploaded_tags = select_all_sql(sql)
 
-      Rails.cache.write("uploaded_tags/#{id}/#{type}", uploaded_tags, :expires_in => 1.day)
+      Rails.cache.write("uploaded_tags/#{id}/#{type}", uploaded_tags, expires_in: 1.day)
 
       uploaded_tags
     end
@@ -246,16 +248,16 @@ class User < ApplicationRecord
       favorite_tags = Rails.cache.read("favorite_tags/#{id}/#{type}")
       return favorite_tags unless favorite_tags.nil?
 
-      if Rails.env == "test"
+      if Rails.env == 'test'
         # disable filtering in test mode to simplify tests
-        popular_tags = ""
+        popular_tags = ''
       else
-        popular_tags = select_values_sql("SELECT id FROM tags WHERE tag_type = #{CONFIG["tag_types"]["General"]} ORDER BY post_count DESC LIMIT 8").join(", ")
+        popular_tags = select_values_sql("SELECT id FROM tags WHERE tag_type = #{CONFIG['tag_types']['General']} ORDER BY post_count DESC LIMIT 8").join(', ')
         popular_tags = "AND pt.tag_id NOT IN (#{popular_tags})" unless popular_tags.blank?
       end
 
-      if type
-        sql = <<-EOS
+      sql = if type
+              <<-EOS
           SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, SUM(v.score) AS sum
           FROM posts_tags pt, tags t, post_votes v
           WHERE v.user_id = #{id}
@@ -266,9 +268,9 @@ class User < ApplicationRecord
           GROUP BY pt.tag_id
           ORDER BY sum DESC
           LIMIT 6
-        EOS
-      else
-        sql = <<-EOS
+              EOS
+            else
+              <<-EOS
           SELECT (SELECT name FROM tags WHERE id = pt.tag_id) AS tag, SUM(v.score) AS sum
           FROM posts_tags pt, post_votes v
           WHERE v.user_id = #{id}
@@ -277,12 +279,12 @@ class User < ApplicationRecord
           GROUP BY pt.tag_id
           ORDER BY sum DESC
           LIMIT 6
-        EOS
-      end
+              EOS
+            end
 
       favorite_tags = select_all_sql(sql)
 
-      Rails.cache.write("favorite_tags/#{id}/#{type}", favorite_tags, :expires_in => 1.day)
+      Rails.cache.write("favorite_tags/#{id}/#{type}", favorite_tags, expires_in: 1.day)
 
       favorite_tags
     end
@@ -296,23 +298,23 @@ class User < ApplicationRecord
     end
 
     def recent_uploaded_posts
-      posts.available.order(:id => :desc).limit(6)
+      posts.available.order(id: :desc).limit(6)
     end
 
     def recent_favorite_posts
-      Post.available.joins(:post_votes).where(:post_votes => { :user_id => id, :score => 3 }).order("post_votes.id DESC").limit(6)
+      Post.available.joins(:post_votes).where(post_votes: { user_id: id, score: 3 }).order('post_votes.id DESC').limit(6)
     end
 
     def favorite_post_count(_options = {})
-      post_votes.where(:score => 3).count
+      post_votes.where(score: 3).count
     end
 
     def post_count
-      @post_count ||= posts.where(:status => "active").count
+      @post_count ||= posts.where(status: 'active').count
     end
 
     def held_post_count
-      posts.available.where(:is_held => true).count
+      posts.available.where(is_held: true).count
     end
   end
 
@@ -323,18 +325,18 @@ class User < ApplicationRecord
     end
 
     def pretty_level
-      CONFIG["user_levels"].invert[level]
+      CONFIG['user_levels'].invert[level]
     end
 
     def set_role
       self.level = if User.exists?
-                     if CONFIG["enable_account_email_activation"]
-                       CONFIG["user_levels"]["Unactivated"]
+                     if CONFIG['enable_account_email_activation']
+                       CONFIG['user_levels']['Unactivated']
                      else
-                       CONFIG["starting_level"]
+                       CONFIG['starting_level']
                      end
                    else
-                     CONFIG["user_levels"]["Admin"]
+                     CONFIG['user_levels']['Admin']
                    end
 
       self.last_logged_in_at = Time.now
@@ -378,8 +380,8 @@ class User < ApplicationRecord
     end
 
     # Defines various convenience methods for finding out the user's level
-    CONFIG["user_levels"].each do |name, value|
-      normalized_name = name.downcase.gsub(/ /, "_")
+    CONFIG['user_levels'].each do |name, value|
+      normalized_name = name.downcase.gsub(/ /, '_')
       define_method("is_#{normalized_name}?") do
         level == value
       end
@@ -397,8 +399,8 @@ class User < ApplicationRecord
       def get_user_level(level)
         unless @user_level
           @user_level = {}
-          CONFIG["user_levels"].each do |name, value|
-            normalized_name = name.downcase.gsub(/ /, "_").to_sym
+          CONFIG['user_levels'].each do |name, value|
+            normalized_name = name.downcase.gsub(/ /, '_').to_sym
             @user_level[normalized_name] = value
           end
         end
@@ -408,31 +410,25 @@ class User < ApplicationRecord
   end
 
   module UserInviteMethods
-    class NoInvites < Exception; end
-    class HasNegativeRecord < Exception; end
+    class NoInvites < RuntimeError; end
+    class HasNegativeRecord < RuntimeError; end
 
     def invite!(name, level)
-      if invite_count <= 0
-        raise NoInvites
-      end
+      raise NoInvites if invite_count <= 0
 
-      if level.to_i >= CONFIG["user_levels"]["Contributor"]
-        level = CONFIG["user_levels"]["Contributor"]
-      end
+      level = CONFIG['user_levels']['Contributor'] if level.to_i >= CONFIG['user_levels']['Contributor']
 
       invitee = User.find_by_name(name)
 
-      if invitee.nil?
-        raise ActiveRecord::RecordNotFound
-      end
+      raise ActiveRecord::RecordNotFound if invitee.nil?
 
-      if UserRecord.exists?(["user_id = ? AND is_positive = false AND reported_by IN (SELECT id FROM users WHERE level >= ?)", invitee.id, CONFIG["user_levels"]["Mod"]]) && !is_admin?
+      if UserRecord.exists?(['user_id = ? AND is_positive = false AND reported_by IN (SELECT id FROM users WHERE level >= ?)', invitee.id, CONFIG['user_levels']['Mod']]) && !is_admin?
         raise HasNegativeRecord
       end
 
       transaction do
-        if level == CONFIG["user_levels"]["Contributor"]
-          Post.where(:status => "pending", :user_id => id).find_each do |post|
+        if level == CONFIG['user_levels']['Contributor']
+          Post.where(status: 'pending', user_id: id).find_each do |post|
             post.approve!(id)
           end
         end
@@ -449,21 +445,21 @@ class User < ApplicationRecord
       # post_id is being destroyed.  Clear avatar_post_ids for this post, so we won't use
       # avatars from this post.  We don't need to actually delete the image.
       def clear_avatars(post_id)
-        execute_sql("UPDATE users SET avatar_post_id = NULL WHERE avatar_post_id = ?", post_id)
+        execute_sql('UPDATE users SET avatar_post_id = NULL WHERE avatar_post_id = ?', post_id)
       end
     end
 
     def self.included(m)
       m.extend(ClassMethods)
-      m.belongs_to :avatar_post, :class_name => "Post"
+      m.belongs_to :avatar_post, class_name: 'Post'
     end
 
     def avatar_url
-      CONFIG["url_base"] + "/data/avatars/#{id}.jpg"
+      CONFIG['url_base'] + "/data/avatars/#{id}.jpg"
     end
 
     def has_avatar?
-      (!avatar_post_id.nil?)
+      !avatar_post_id.nil?
     end
 
     def avatar_path
@@ -473,20 +469,20 @@ class User < ApplicationRecord
     def set_avatar(params)
       post = Post.find(params[:post_id])
       unless post.can_be_seen_by?(self)
-        errors.add(:access, "denied")
+        errors.add(:access, 'denied')
         return false
       end
 
-      [:top, :bottom, :left, :right].each { |d| params[d] = params[d].to_f }
+      %i[top bottom left right].each { |d| params[d] = params[d].to_f }
 
       if params[:top] < 0 || params[:top] > 1 ||
-          params[:bottom] < 0 || params[:bottom] > 1 ||
-          params[:left] < 0 || params[:left] > 1 ||
-          params[:right] < 0 || params[:right] > 1 ||
-          params[:top] >= params[:bottom] ||
-          params[:left] >= params[:right]
+         params[:bottom] < 0 || params[:bottom] > 1 ||
+         params[:left] < 0 || params[:left] > 1 ||
+         params[:right] < 0 || params[:right] > 1 ||
+         params[:top] >= params[:bottom] ||
+         params[:left] >= params[:right]
 
-        errors.add(:parameter, "error")
+        errors.add(:parameter, 'error')
         return false
       end
 
@@ -496,7 +492,7 @@ class User < ApplicationRecord
         cropped_image_width = image_width * (params[:right] - params[:left])
         cropped_image_height = image_height * (params[:bottom] - params[:top])
 
-        size = Moebooru::Resizer.reduce_to({ :width => cropped_image_width, :height => cropped_image_height }, { :width => CONFIG["avatar_max_width"], :height => CONFIG["avatar_max_height"] }, 1, true)
+        size = Moebooru::Resizer.reduce_to({ width: cropped_image_width, height: cropped_image_height }, { width: CONFIG['avatar_max_width'], height: CONFIG['avatar_max_height'] }, 1, true)
         size[:crop_top] = image_height * params[:top]
         size[:crop_bottom] = image_height * params[:bottom]
         size[:crop_left] = image_width * params[:left]
@@ -507,13 +503,13 @@ class User < ApplicationRecord
       use_sample = post.has_sample?
       if use_sample
         image_path = post.sample_path
-        image_ext = "jpg"
+        image_ext = 'jpg'
         size = reduce_and_crop(post.sample_width, post.sample_height, params)
 
         # If we're cropping from a very small region in the sample, use the full
         # image instead, to get a higher quality image.
-        if size[:crop_bottom] - size[:crop_top] < CONFIG["avatar_max_height"] ||
-            size[:crop_right] - size[:crop_left] < CONFIG["avatar_max_width"]
+        if size[:crop_bottom] - size[:crop_top] < CONFIG['avatar_max_height'] ||
+           size[:crop_right] - size[:crop_left] < CONFIG['avatar_max_width']
           use_sample = false
         end
       end
@@ -526,32 +522,33 @@ class User < ApplicationRecord
 
       begin
         Moebooru::Resizer.resize(image_ext, image_path, tempfile_path, size, 95)
-      rescue => x
+      rescue StandardError => e
         FileUtils.rm_f(tempfile_path)
 
-        errors.add "avatar", "couldn't be generated (#{x})"
+        errors.add 'avatar', "couldn't be generated (#{e})"
         return false
       end
 
       FileUtils.mkdir_p(File.dirname(avatar_path))
       FileUtils.mv(tempfile_path, avatar_path)
-      FileUtils.chmod(0775, avatar_path)
+      FileUtils.chmod(0o775, avatar_path)
 
       update(
-        :avatar_post_id => params[:post_id],
-        :avatar_top => params[:top],
-        :avatar_bottom => params[:bottom],
-        :avatar_left => params[:left],
-        :avatar_right => params[:right],
-        :avatar_width => size[:width],
-        :avatar_height => size[:height],
-        :avatar_timestamp => Time.now)
+        avatar_post_id: params[:post_id],
+        avatar_top: params[:top],
+        avatar_bottom: params[:bottom],
+        avatar_left: params[:left],
+        avatar_right: params[:right],
+        avatar_width: size[:width],
+        avatar_height: size[:height],
+        avatar_timestamp: Time.now
+      )
     end
   end
 
   module UserTagSubscriptionMethods
     def self.included(m)
-      m.has_many :tag_subscriptions, lambda { order "name" }, :dependent => :delete_all
+      m.has_many :tag_subscriptions, -> { order 'name' }, dependent: :delete_all
     end
 
     def tag_subscriptions_text=(text)
@@ -559,13 +556,13 @@ class User < ApplicationRecord
         tag_subscriptions.clear
 
         text.scan(/\S+/).each do |new_tag_subscription|
-          tag_subscriptions.create(:tag_query => new_tag_subscription)
+          tag_subscriptions.create(tag_query: new_tag_subscription)
         end
       end
     end
 
     def tag_subscriptions_text
-      tag_subscriptions_text.map(&:tag_query).sort.join(" ")
+      tag_subscriptions_text.map(&:tag_query).sort.join(' ')
     end
 
     def tag_subscription_posts(limit, name)
@@ -575,31 +572,31 @@ class User < ApplicationRecord
 
   module UserLanguageMethods
     def self.included(m)
-      m.validates_format_of :language, :with => /\A([a-z\-]+)|\z/
-      m.validates_format_of :secondary_languages, :with => /\A([a-z\-]+(,[a-z\0]+)*)?\z/
+      m.validates_format_of :language, with: /\A([a-z\-]+)|\z/
+      m.validates_format_of :secondary_languages, with: /\A([a-z\-]+(,[a-z\0]+)*)?\z/
       m.before_validation :commit_secondary_languages
     end
 
     attr_writer :secondary_language_array
 
     def secondary_language_array
-      @secondary_language_array || secondary_languages.split(",")
+      @secondary_language_array || secondary_languages.split(',')
     end
 
     def commit_secondary_languages
       return unless secondary_language_array
 
-      if secondary_language_array.include?("none")
-        self.secondary_languages = ""
-      else
-        self.secondary_languages = secondary_language_array.join(",")
-      end
+      self.secondary_languages = if secondary_language_array.include?('none')
+                                   ''
+                                 else
+                                   secondary_language_array.join(',')
+                                 end
     end
   end
 
-  validates_presence_of :email, :on => :create if CONFIG["enable_account_email_activation"]
-  validates_uniqueness_of :email, :case_sensitive => false, :on => :create, :if => lambda { |rec| !rec.email.empty? }
-  before_create :set_show_samples if CONFIG["show_samples"]
+  validates_presence_of :email, on: :create if CONFIG['enable_account_email_activation']
+  validates_uniqueness_of :email, case_sensitive: false, on: :create, if: ->(rec) { !rec.email.empty? }
+  before_create :set_show_samples if CONFIG['show_samples']
   has_one :ban
 
   include UserBlacklistMethods
@@ -615,7 +612,7 @@ class User < ApplicationRecord
   include UserTagSubscriptionMethods
   include UserLanguageMethods
 
-  @salt = CONFIG["password_salt"]
+  @salt = CONFIG['password_salt']
 
   class << self
     attr_accessor :salt
@@ -661,17 +658,17 @@ class User < ApplicationRecord
   def self.with_params(params)
     res = all
 
-    res = res.where("name ILIKE ?", "*#{params[:name].tr(" ", "_")}*".to_escaped_for_sql_like) if params[:name].is_a?(String) && params[:name].present?
-    res = res.where(:level => params[:level]) if params[:level] && params[:level] != "any"
-    res = res.where(:id => params[:id]) if params[:id]
+    res = res.where('name ILIKE ?', "*#{params[:name].tr(' ', '_')}*".to_escaped_for_sql_like) if params[:name].is_a?(String) && params[:name].present?
+    res = res.where(level: params[:level]) if params[:level] && params[:level] != 'any'
+    res = res.where(id: params[:id]) if params[:id]
 
     order =
       case params[:order]
-      when "name" then "name_normalized"
-      when "posts" then "(SELECT count(*) FROM posts WHERE user_id = users.id) DESC"
-      when "favorites" then "(SELECT count(*) FROM favorites WHERE user_id = users.id) DESC"
-      when "notes" then "(SELECT count(*) FROM note_versions WHERE user_id = users.id) DESC"
-      else "id DESC"
+      when 'name' then 'name_normalized'
+      when 'posts' then '(SELECT count(*) FROM posts WHERE user_id = users.id) DESC'
+      when 'favorites' then '(SELECT count(*) FROM favorites WHERE user_id = users.id) DESC'
+      when 'notes' then '(SELECT count(*) FROM note_versions WHERE user_id = users.id) DESC'
+      else 'id DESC'
       end
 
     res.order(Arel.sql(order))
@@ -680,31 +677,27 @@ class User < ApplicationRecord
   # FIXME: ensure not used and then nuke
   def self.generate_sql(params)
     Nagato::Builder.new do |builder, cond|
-      if params[:name]
-        cond.add "name ILIKE ? ESCAPE E'\\\\'", "%" + params[:name].tr(" ", "_").to_escaped_for_sql_like + "%"
-      end
+      cond.add "name ILIKE ? ESCAPE E'\\\\'", '%' + params[:name].tr(' ', '_').to_escaped_for_sql_like + '%' if params[:name]
 
-      if params[:level] && params[:level] != "any"
-        cond.add "level = ?", params[:level].to_i
-      end
+      cond.add 'level = ?', params[:level].to_i if params[:level] && params[:level] != 'any'
 
-      cond.add_unless_blank "id = ?", params[:id]
+      cond.add_unless_blank 'id = ?', params[:id]
 
       case params[:order]
-      when "name"
-        builder.order "name_normalized"
+      when 'name'
+        builder.order 'name_normalized'
 
-      when "posts"
-        builder.order "(SELECT count(*) FROM posts WHERE user_id = users.id) DESC"
+      when 'posts'
+        builder.order '(SELECT count(*) FROM posts WHERE user_id = users.id) DESC'
 
-      when "favorites"
-        builder.order "(SELECT count(*) FROM favorites WHERE user_id = users.id) DESC"
+      when 'favorites'
+        builder.order '(SELECT count(*) FROM favorites WHERE user_id = users.id) DESC'
 
-      when "notes"
-        builder.order "(SELECT count(*) FROM note_versions WHERE user_id = users.id) DESC"
+      when 'notes'
+        builder.order '(SELECT count(*) FROM note_versions WHERE user_id = users.id) DESC'
 
       else
-        builder.order "id DESC"
+        builder.order 'id DESC'
       end
     end.to_hash
   end
